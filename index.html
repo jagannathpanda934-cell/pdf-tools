@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PDF Tools</title>
+
+  <!-- Libraries -->
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
+  <style>
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: linear-gradient(135deg, #ff4d4d, #ff9966);
+  min-height: 100vh;
+  margin: 0;
+  padding: 30px;
+}
+
+.box {
+  background: white;
+  padding: 30px;
+  max-width: 450px;
+  margin: 20px auto;
+  border-radius: 15px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+h2 {
+  margin-top: 0;
+  color: #333;
+}
+
+button {
+  padding: 12px 25px;
+  background: #ff4d4d;
+  color: white;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+button:hover {
+  background: #e60000;
+}
+
+input[type=file] {
+  border: 2px dashed #ccc;
+  padding: 15px;
+  width: 100%;
+  border-radius: 10px;
+}
+
+canvas {
+  margin-top: 15px;
+  max-width: 100%;
+}
+</style>
+
+</head>
+
+<body>
+
+<!-- JPG TO PDF -->
+<div class="box">
+  <h2>JPG to PDF</h2>
+  <input type="file" id="jpgFile" accept="image/jpeg"><br><br>
+  <button onclick="jpgToPdf()">Convert to PDF</button>
+</div>
+
+<!-- PDF TO JPG -->
+<div class="box">
+  <h2>PDF to JPG</h2>
+  <input type="file" id="pdfFile" accept="application/pdf"><br><br>
+  <button onclick="pdfToJpg()">Convert to JPG</button>
+  <canvas id="canvas"></canvas>
+</div>
+
+<script>
+// JPG TO PDF
+async function jpgToPdf() {
+  const input = document.getElementById("jpgFile");
+  if (!input.files.length) {
+    alert("Please select a JPG file");
+    return;
+  }
+
+  const file = input.files[0];
+  const imgBytes = await file.arrayBuffer();
+
+  const pdfDoc = await PDFLib.PDFDocument.create();
+  const img = await pdfDoc.embedJpg(imgBytes);
+  const page = pdfDoc.addPage([img.width, img.height]);
+
+  page.drawImage(img, {
+    x: 0,
+    y: 0,
+    width: img.width,
+    height: img.height
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  const blob = new Blob([pdfBytes], { type: "application/pdf" });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "image.pdf";
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// PDF TO JPG (first page)
+async function pdfToJpg() {
+  const input = document.getElementById("pdfFile");
+  if (!input.files.length) {
+    alert("Please select a PDF file");
+    return;
+  }
+
+  const file = input.files[0];
+  const reader = new FileReader();
+
+  reader.onload = async function () {
+    const pdfData = new Uint8Array(this.result);
+    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 2 });
+
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    const link = document.createElement("a");
+    link.href = canvas.toDataURL("image/jpeg");
+    link.download = "page.jpg";
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+</script>
+
+</body>
+</html>
